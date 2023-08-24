@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
-from opentelemetry import context, trace
+from opentelemetry import trace
 
 
 def configure_tracer():
