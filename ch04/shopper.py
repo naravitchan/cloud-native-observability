@@ -34,3 +34,4 @@ def visit_store():
 
 if __name__ == "__main__":
     visit_store()
+    print("finished")
