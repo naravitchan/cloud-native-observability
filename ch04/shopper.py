@@ -12,7 +12,7 @@ tracer = configure_tracer("shopper", "0.1.2")
 def browse():
     print("visiting the grocery store")
     with tracer.start_as_current_span(
-        "web request", kind=trace.SpanKind.CLIENT
+        "web request", kind=trace.SpanKind.CLIENT, record_exception=False, set_status_on_exception=True
     ) as span:
         url = "http://localhost:5000/products"
         headers = {}
@@ -27,7 +27,8 @@ def browse():
             }
         )
         span.add_event("about to send a request")
-        resp = requests.get(url, headers=headers)
+        # resp = requests.get(url, headers=headers)
+        resp = requests.get("invalid_url", headers=headers)
         span.add_event("request sent", attributes={"url": url}, timestamp=0)
         span.set_attribute(SpanAttributes.HTTP_STATUS_CODE, resp.status_code)
     # add_item_to_cart("orange", 5)
