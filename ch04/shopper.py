@@ -10,13 +10,13 @@ tracer = configure_tracer("shopper", "0.1.2")
 
 @tracer.start_as_current_span("browse")
 def browse():
+    print("visiting the grocery store")
     with tracer.start_as_current_span(
         "web request", kind=trace.SpanKind.CLIENT
     ) as span:
+        url = "http://localhost:5000/products"
         headers = {}
         inject(headers)
-        url = "http://localhost:5000"
-        print("visiting the grocery store")
         span = trace.get_current_span()
         span.set_attributes(
             {
