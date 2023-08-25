@@ -1,4 +1,4 @@
-#!/Users/seagame/Codes/test/rust/cloud-native-observability/ch05/bin/python3.11
+#!/Users/seagame/Codes/test/rust/cloud_native_observability/ch04/bin/python3.11
 # -*- coding: utf-8 -*-
 import re
 import sys

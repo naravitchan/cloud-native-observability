@@ -1,44 +1,22 @@
-import requests
-import time
-
 from flask import Flask, request
-from opentelemetry import context, trace
+from opentelemetry.semconv.trace import HttpFlavorValues, SpanAttributes
+from opentelemetry.trace import SpanKind
+from opentelemetry import context
 from opentelemetry.propagate import extract, inject, set_global_textmap
 from opentelemetry.propagators.b3 import B3MultiFormat
 from opentelemetry.propagators.composite import CompositePropagator
-from opentelemetry.semconv.trace import HttpFlavorValues, SpanAttributes
-from opentelemetry.trace import SpanKind
 from opentelemetry.trace.propagation import tracecontext
-from common import configure_meter, configure_tracer, set_span_attributes_from_flask
-from common import start_recording_memory_metrics
+import requests
+
+from common import set_span_attributes_from_flask
+from common import configure_tracer
 
 
-tracer = configure_tracer("grocery-store", "0.1.2")
-meter = configure_meter("grocery-store", "0.1.2")
-request_counter = meter.create_counter(
-    name="requests",
-    unit="request",
-    description="Total number of requests",
-)
-total_duration_histo = meter.create_histogram(
-    name="duration",
-    description="request duration",
-    unit="ms",
-)
+set_global_textmap(CompositePropagator([tracecontext.TraceContextTextMapPropagator(), B3MultiFormat()]))
 
-upstream_duration_histo = meter.create_histogram(
-    name="upstream_request_duration",
-    description="duration of upstream requests",
-    unit="ms",
-)
-concurrent_counter = meter.create_up_down_counter(
-    name="concurrent_requests",
-    unit="request",
-    description="Total number of concurrent requests",
-)
-set_global_textmap(
-    CompositePropagator([tracecontext.TraceContextTextMapPropagator(), B3MultiFormat()])
-)
+
+tracer = configure_tracer("0.1.2", "grocery-store")
+
 app = Flask(__name__)
 
 
@@ -46,17 +24,6 @@ app = Flask(__name__)
 def before_request_func():
     token = context.attach(extract(request.headers))
     request.environ["context_token"] = token
-    request.environ["start_time"] = time.time_ns()
-    concurrent_counter.add(1)
-
-
-@app.after_request
-def increment_counter(response):
-    request_counter.add(1, {"code": response.status_code})
-    duration = (time.time_ns() - request.environ["start_time"]) / 1e6
-    total_duration_histo.record(duration)
-    concurrent_counter.add(-1)
-    return response
 
 
 @app.teardown_request
@@ -82,20 +49,17 @@ def products():
         span.set_attributes(
             {
                 SpanAttributes.HTTP_METHOD: "GET",
-                SpanAttributes.HTTP_FLAVOR: str(HttpFlavorValues.HTTP_1_1),
+                SpanAttributes.HTTP_FLAVOR:
+                str(HttpFlavorValues.HTTP_1_1),
                 SpanAttributes.HTTP_URL: url,
                 SpanAttributes.NET_PEER_IP: "127.0.0.1",
             }
         )
         headers = {}
         inject(headers)
-        start = time.time_ns()
         resp = requests.get(url, headers=headers)
-        duration = (time.time_ns() - start) / 1e6
-        upstream_duration_histo.record(duration)
         return resp.text
 
 
 if __name__ == "__main__":
-    start_recording_memory_metrics(meter)
-    app.run(debug=True)
+    app.run()
