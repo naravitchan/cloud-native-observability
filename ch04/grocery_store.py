@@ -12,7 +12,7 @@ from common import set_span_attributes_from_flask
 from common import configure_tracer
 
 
-set_global_textmap(CompositePropagator([tracecontext. TraceContextTextMapPropagator(), B3MultiFormat()]))
+set_global_textmap(CompositePropagator([tracecontext.TraceContextTextMapPropagator(), B3MultiFormat()]))
 
 
 tracer = configure_tracer("0.1.2", "grocery-store")
