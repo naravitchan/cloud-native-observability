@@ -1,5 +1,6 @@
 # import time
 from opentelemetry._metrics.measurement import Measurement
+from opentelemetry._metrics.instrument import Counter
 from opentelemetry._metrics import get_meter_provider, set_meter_provider
 from opentelemetry.sdk._metrics import MeterProvider
 from opentelemetry.sdk.resources import Resource
@@ -16,7 +17,12 @@ from opentelemetry.sdk._metrics.view import View
 def configure_meter_provider():
     start_http_server(port=8000, addr="localhost")
     reader = PrometheusMetricReader(prefix="MetricExample")
-    view = View(instrument_name="inventory")
+    view = View(
+        instrument_type=Counter,
+        attribute_keys=[],
+        name="sold",
+        description="total items sold"
+    )
     exporter = ConsoleMetricExporter()
     reader = PeriodicExportingMetricReader(exporter, export_interval_millis=5000)
     provider = MeterProvider(metric_readers=[reader], resource=Resource.create(), views=[view], enable_default_view=False,)
@@ -53,7 +59,7 @@ if __name__ == "__main__":
         description="Total items sold"
     )
     counter.add(6, {"locale": "fr-FR", "country": "CA"})
-    counter.add(1, {"locale": "es-ES", "country": "CS"})
+    counter.add(1, {"locale": "es-ES"})
     # counter.add(-1, {"unicorn": 1}) # Add amount must be non-negative on Counter items_sold.
 
     meter.create_observable_counter(
