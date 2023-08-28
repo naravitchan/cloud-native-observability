@@ -1,4 +1,4 @@
-import time
+# import time
 from opentelemetry._metrics.measurement import Measurement
 from opentelemetry._metrics import get_meter_provider, set_meter_provider
 from opentelemetry.sdk._metrics import MeterProvider
@@ -10,14 +10,16 @@ from opentelemetry.sdk._metrics.export import (
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
 from prometheus_client import start_http_server
 import resource
+from opentelemetry.sdk._metrics.view import View
 
 
 def configure_meter_provider():
     start_http_server(port=8000, addr="localhost")
     reader = PrometheusMetricReader(prefix="MetricExample")
+    view = View(instrument_name="inventory")
     exporter = ConsoleMetricExporter()
     reader = PeriodicExportingMetricReader(exporter, export_interval_millis=5000)
-    provider = MeterProvider(metric_readers=[reader], resource=Resource.create())
+    provider = MeterProvider(metric_readers=[reader], resource=Resource.create(), views=[view], enable_default_view=False,)
     set_meter_provider(provider)
 
 
