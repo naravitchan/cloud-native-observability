@@ -12,6 +12,7 @@ from opentelemetry.exporter.prometheus import PrometheusMetricReader
 from prometheus_client import start_http_server
 import resource
 from opentelemetry.sdk._metrics.view import View
+from opentelemetry.sdk._metrics.aggregation import LastValueAggregation
 
 
 def configure_meter_provider():
@@ -21,7 +22,8 @@ def configure_meter_provider():
         instrument_type=Counter,
         attribute_keys=[],
         name="sold",
-        description="total items sold"
+        description="total items sold",
+        aggregation=LastValueAggregation(),
     )
     exporter = ConsoleMetricExporter()
     reader = PeriodicExportingMetricReader(exporter, export_interval_millis=5000)
