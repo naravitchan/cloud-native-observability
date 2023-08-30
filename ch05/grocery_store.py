@@ -32,6 +32,11 @@ upstream_duration_histo = meter.create_histogram(
     description="duration of upstream requests",
     unit="ms",
 )
+concurrent_counter = meter.create_up_down_counter(
+    name="concurrent_requests",
+    unit="request",
+    description="Total number of concurrent requests",
+)
 
 app = Flask(__name__)
 
@@ -42,6 +47,7 @@ def before_request_func():
     request_counter.add(1)
     request.environ["context_token"] = token
     request.environ["start_time"] = time.time_ns()
+    concurrent_counter.add(1)
 
 
 @app.after_request
@@ -49,6 +55,7 @@ def after_request_func(response):
     request_counter.add(1, {"code": response.status_code})
     duration = (time.time_ns() - request.environ["start_time"]) / 1e6
     total_duration_histo.record(duration)
+    concurrent_counter.add(-1)
     return response
 
 
