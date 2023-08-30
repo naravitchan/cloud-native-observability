@@ -1,6 +1,7 @@
 from opentelemetry.sdk._logs import (
     LoggerProvider,
     LogRecord,
+    LoggingHandler
 )
 from opentelemetry._logs import (
     get_logger_provider,
@@ -10,6 +11,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk._logs.export import ConsoleLogExporter, BatchLogRecordProcessor
 import time
 from opentelemetry._logs.severity import SeverityNumber
+import logging
 
 
 def configure_log_emitter_provider():
@@ -32,3 +34,9 @@ if __name__ == "__main__":
             severity_number=SeverityNumber.INFO,
         )
     )
+    logger = logging.getLogger(__file__)
+    handler = LoggingHandler()
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    # logger.warning("second log line", extra={"key1": "val1"})
+    logger.info("second log line")
