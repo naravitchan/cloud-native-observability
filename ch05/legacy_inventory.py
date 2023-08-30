@@ -3,10 +3,18 @@ from opentelemetry import context
 from opentelemetry.propagate import extract, set_global_textmap
 from opentelemetry.propagators.b3 import B3MultiFormat
 from opentelemetry.trace import SpanKind
-from common import configure_tracer, set_span_attributes_from_flask
+from common import configure_meter, configure_tracer, set_span_attributes_from_flask
+import time
 
 
+meter = configure_meter("legacy-inventory", "0.9.1")
 tracer = configure_tracer("legacy-inventory", "0.9.1")
+
+total_duration_histo = meter.create_histogram(
+    name="duration",
+    description="request duration",
+    unit="ms",
+)
 app = Flask(__name__)
 set_global_textmap(B3MultiFormat())
 
@@ -15,6 +23,14 @@ set_global_textmap(B3MultiFormat())
 def before_request_func():
     token = context.attach(extract(request.headers))
     request.environ["context_token"] = token
+    request.environ["start_time"] = time.time_ns()
+
+
+@app.after_request
+def after_request_func(response):
+    duration = (time.time_ns() - request.environ["start_time"]) / 1e6
+    total_duration_histo.record(duration)
+    return response
 
 
 @app.teardown_request

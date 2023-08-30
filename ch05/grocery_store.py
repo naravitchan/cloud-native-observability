@@ -7,6 +7,7 @@ from opentelemetry.propagators.b3 import B3MultiFormat
 from opentelemetry.propagators.composite import CompositePropagator
 from opentelemetry.trace.propagation import tracecontext
 import requests
+import time
 
 from common import configure_meter, configure_tracer, set_span_attributes_from_flask
 
@@ -21,6 +22,16 @@ request_counter = meter.create_counter(
     unit="request",
     description="Total number of requests",
 )
+total_duration_histo = meter.create_histogram(
+    name="duration",
+    description="request duration",
+    unit="ms",
+)
+upstream_duration_histo = meter.create_histogram(
+    name="upstream_request_duration",
+    description="duration of upstream requests",
+    unit="ms",
+)
 
 app = Flask(__name__)
 
@@ -30,11 +41,14 @@ def before_request_func():
     token = context.attach(extract(request.headers))
     request_counter.add(1)
     request.environ["context_token"] = token
+    request.environ["start_time"] = time.time_ns()
 
 
 @app.after_request
 def after_request_func(response):
     request_counter.add(1, {"code": response.status_code})
+    duration = (time.time_ns() - request.environ["start_time"]) / 1e6
+    total_duration_histo.record(duration)
     return response
 
 
@@ -69,7 +83,10 @@ def products():
         )
         headers = {}
         inject(headers)
+        start = time.time_ns()
         resp = requests.get(url, headers=headers)
+        duration = (time.time_ns() - start) / 1e6
+        upstream_duration_histo.record(duration)
         return resp.text
 
 
