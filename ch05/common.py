@@ -12,6 +12,21 @@ from opentelemetry.sdk._metrics.export import (
     PeriodicExportingMetricReader,
 )
 from opentelemetry.semconv.resource import ResourceAttributes
+import resource
+from opentelemetry._metrics.measurement import Measurement
+
+
+def record_max_rss_callback():
+    yield Measurement(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+
+
+def start_recording_memory_metrics(meter):
+    meter.create_observable_gauge(
+        callback=record_max_rss_callback,
+        name="maxrss",
+        unit="bytes",
+        description="Max resident set size",
+    )
 
 
 def configure_meter(name, version):
