@@ -2,10 +2,11 @@
 from opentelemetry.semconv.trace import HttpFlavorValues, SpanAttributes
 from opentelemetry import trace
 import requests
-from common import configure_tracer
+from common import configure_tracer, configure_meter
 from opentelemetry.propagate import inject
 
 tracer = configure_tracer("shopper", "0.1.2")
+meter = configure_meter("shopper", "0.1.2")
 
 
 @tracer.start_as_current_span("browse")

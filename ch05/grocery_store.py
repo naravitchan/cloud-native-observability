@@ -8,14 +8,19 @@ from opentelemetry.propagators.composite import CompositePropagator
 from opentelemetry.trace.propagation import tracecontext
 import requests
 
-from common import set_span_attributes_from_flask
-from common import configure_tracer
+from common import configure_meter, configure_tracer, set_span_attributes_from_flask
 
 
 set_global_textmap(CompositePropagator([tracecontext.TraceContextTextMapPropagator(), B3MultiFormat()]))
 
 
 tracer = configure_tracer("0.1.2", "grocery-store")
+meter = configure_meter("grocery-store", "0.1.2")
+request_counter = meter.create_counter(
+    name="requests",
+    unit="request",
+    description="Total number of requests",
+)
 
 app = Flask(__name__)
 
@@ -23,7 +28,14 @@ app = Flask(__name__)
 @app.before_request
 def before_request_func():
     token = context.attach(extract(request.headers))
+    request_counter.add(1)
     request.environ["context_token"] = token
+
+
+@app.after_request
+def after_request_func(response):
+    request_counter.add(1, {"code": response.status_code})
+    return response
 
 
 @app.teardown_request
