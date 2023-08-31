@@ -7,15 +7,50 @@ from opentelemetry.propagators.b3 import B3MultiFormat
 from opentelemetry.propagators.composite import CompositePropagator
 from opentelemetry.trace.propagation import tracecontext
 import requests
+import time
 
-from common import set_span_attributes_from_flask
-from common import configure_tracer
+# from logging.config import dictConfig
+
+from common import configure_meter, configure_tracer, set_span_attributes_from_flask, configure_logger
 
 
 set_global_textmap(CompositePropagator([tracecontext.TraceContextTextMapPropagator(), B3MultiFormat()]))
 
 
 tracer = configure_tracer("0.1.2", "grocery-store")
+meter = configure_meter("grocery-store", "0.1.2")
+logger = configure_logger("grocery-store", "0.1.2")
+# dictConfig(
+#     {
+#         "version": 1,
+#         "handlers": {
+#             "otlp": {
+#                 "class": "opentelemetry.sdk._logs.OTLPHandler",
+#             }
+#         },
+#         "root": {"level": "DEBUG", "handlers": ["otlp"]},
+#     }
+# )
+request_counter = meter.create_counter(
+    name="requests",
+    unit="request",
+    description="Total number of requests",
+)
+total_duration_histo = meter.create_histogram(
+    name="duration",
+    description="request duration",
+    unit="ms",
+)
+upstream_duration_histo = meter.create_histogram(
+    name="upstream_request_duration",
+    description="duration of upstream requests",
+    unit="ms",
+)
+concurrent_counter = meter.create_up_down_counter(
+    name="concurrent_requests",
+    unit="request",
+    description="Total number of concurrent requests",
+)
 
 app = Flask(__name__)
 
@@ -23,7 +58,19 @@ app = Flask(__name__)
 @app.before_request
 def before_request_func():
     token = context.attach(extract(request.headers))
+    request_counter.add(1)
     request.environ["context_token"] = token
+    request.environ["start_time"] = time.time_ns()
+    concurrent_counter.add(1)
+
+
+@app.after_request
+def after_request_func(response):
+    request_counter.add(1, {"code": response.status_code})
+    duration = (time.time_ns() - request.environ["start_time"]) / 1e6
+    total_duration_histo.record(duration)
+    concurrent_counter.add(-1)
+    return response
 
 
 @app.teardown_request
@@ -57,7 +104,10 @@ def products():
         )
         headers = {}
         inject(headers)
+        start = time.time_ns()
         resp = requests.get(url, headers=headers)
+        duration = (time.time_ns() - start) / 1e6
+        upstream_duration_histo.record(duration)
         return resp.text
 
 
